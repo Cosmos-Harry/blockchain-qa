@@ -1,0 +1,149 @@
+version: '3.8'
+
+services:
+  # Local Ethereum node (Anvil from Foundry)
+  anvil:
+    image: ghcr.io/foundry-rs/foundry:latest
+    container_name: blockchain-qa-anvil
+    command: >
+      anvil
+      --host 0.0.0.0
+      --port 8545
+      --block-time 2
+      --accounts 20
+      --balance 10000
+    ports:
+      - "8545:8545"
+    networks:
+      - blockchain-qa-network
+    healthcheck:
+      test: ["CMD", "cast", "client", "--rpc-url", "http://localhost:8545"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # PostgreSQL database for indexer
+  postgres:
+    image: postgres:15-alpine
+    container_name: blockchain-qa-postgres
+    environment:
+      POSTGRES_DB: polls
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: dev_password_change_in_production
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - blockchain-qa-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Redis cache for API
+  redis:
+    image: redis:7-alpine
+    container_name: blockchain-qa-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    networks:
+      - blockchain-qa-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Event indexer (Go)
+  indexer:
+    build:
+      context: ./indexer
+      dockerfile: Dockerfile
+    container_name: blockchain-qa-indexer
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      anvil:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://postgres:dev_password_change_in_production@postgres:5432/polls?sslmode=disable
+      REDIS_URL: redis://redis:6379
+      ETH_RPC_URL: http://anvil:8545
+      LOG_LEVEL: info
+      BLOCK_CONFIRMATIONS: 6
+      POLL_INTERVAL: 2s
+    networks:
+      - blockchain-qa-network
+    restart: unless-stopped
+    command: /app/indexer
+
+  # REST API (Go/Fiber)
+  api:
+    build:
+      context: ./indexer
+      dockerfile: Dockerfile
+    container_name: blockchain-qa-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://postgres:dev_password_change_in_production@postgres:5432/polls?sslmode=disable
+      REDIS_URL: redis://redis:6379
+      PORT: 8080
+      LOG_LEVEL: info
+      RATE_LIMIT_REQUESTS: 100
+      RATE_LIMIT_WINDOW: 1m
+      CORS_ORIGINS: "*"
+    ports:
+      - "8080:8080"
+    networks:
+      - blockchain-qa-network
+    restart: unless-stopped
+    command: /app/api
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Mock Oracle (Go)
+  oracle:
+    build:
+      context: ./oracle
+      dockerfile: Dockerfile
+    container_name: blockchain-qa-oracle
+    depends_on:
+      anvil:
+        condition: service_healthy
+    environment:
+      ETH_RPC_URL: http://anvil:8545
+      PRIVATE_KEY: 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+      RESPONSE_MODE: OnTime
+      LATE_DELAY: 0
+      POLL_INTERVAL: 10s
+      LOG_LEVEL: info
+    networks:
+      - blockchain-qa-network
+    restart: unless-stopped
+    command: /app/oracle
+
+networks:
+  blockchain-qa-network:
+    name: blockchain-qa-network
+    driver: bridge
+
+volumes:
+  postgres-data:
+    name: blockchain-qa-postgres-data
+  redis-data:
+    name: blockchain-qa-redis-data
