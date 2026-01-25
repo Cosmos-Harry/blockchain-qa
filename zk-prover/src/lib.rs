@@ -1,14 +1,20 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+pub mod circuit;
+pub mod error;
+pub mod prover;
+pub mod types;
+
+pub use circuit::VoteProofCircuit;
+pub use error::ProverError;
+pub use prover::Prover;
+pub use types::{ProverResult, VoteCommitment, VoteProof};
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
+    fn test_basic_imports() {
+        // Ensure all modules are accessible
+        let _ = ProverError::InvalidCommitment;
     }
 }

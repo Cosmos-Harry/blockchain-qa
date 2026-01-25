@@ -2,7 +2,7 @@
 name = "zk-prover"
 version = "0.1.0"
 edition = "2021"
-authors = "Harry"
+authors = ["Harry"]
 description = "Zero-knowledge proof system for confidential poll voting"
 license = "MIT"
 
@@ -38,6 +38,7 @@ rand_chacha = "0.3"
 
 # Hashing
 sha2 = "0.10"
+hex = "0.4"
 
 # WASM support (optional)
 wasm-bindgen = { version = "0.2", optional = true }
