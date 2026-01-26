@@ -146,11 +146,12 @@ See [TEST_STRATEGY.md](./TEST_STRATEGY.md) for comprehensive testing documentati
   - Integration tests with real database
   - Reorg handling and error recovery
 
-- **End-to-End**: Critical paths covered
+- **End-to-End**: Critical paths covered (Playwright + TypeScript)
   - Full poll lifecycle (create → commit → close → reveal → tally)
   - Privacy verification (zero-knowledge guarantees)
   - Oracle edge cases (late, invalid, no-response)
-  - Load testing (100+ concurrent voters)
+  - API endpoint testing with error handling
+  - Blockchain time manipulation and state snapshots
 
 ### Edge Cases Tested
 
@@ -270,9 +271,9 @@ The confidential poll uses a **commit-reveal scheme** with **zero-knowledge proo
 GitHub Actions workflows run on every push/PR:
 
 - **ci-contracts.yml** - Foundry tests, fuzzing, coverage, Slither
-- **ci-zk-prover.yml** - Rust tests, benchmarks, WASM build
-- **ci-indexer.yml** - Go tests, coverage, linting
-- **ci-e2e.yml** - Full system integration tests with Docker Compose
+- **ci-zk-prover.yml** - Rust tests, clippy, benchmarks
+- **ci-services.yml** - Go tests for indexer, oracle, CLI with PostgreSQL/Redis
+- **ci-e2e.yml** - Full system integration tests with Playwright, Anvil, all services
 
 All tests must pass before merging. Logs and artifacts uploaded on failure.
 
