@@ -1,0 +1,50 @@
+name: Smart Contract Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test-contracts:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Run Forge build
+        working-directory: contracts
+        run: forge build
+
+      - name: Run Forge tests
+        working-directory: contracts
+        run: forge test -vvv
+
+      - name: Run Forge coverage
+        working-directory: contracts
+        run: forge coverage --report lcov
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./contracts/lcov.info
+          flags: contracts
+
+      - name: Check code formatting
+        working-directory: contracts
+        run: forge fmt --check
+
+      - name: Run Slither static analysis
+        uses: crytic/slither-action@v0.3.0
+        with:
+          target: 'contracts/src'
+          fail-on: none
+          slither-args: --filter-paths "test|lib"

@@ -1,0 +1,54 @@
+name: ZK Prover Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test-zk-prover:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            zk-prover/target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Check code formatting
+        working-directory: zk-prover
+        run: cargo fmt --check
+
+      - name: Run Clippy linter
+        working-directory: zk-prover
+        run: cargo clippy -- -D warnings
+
+      - name: Build
+        working-directory: zk-prover
+        run: cargo build --release --verbose
+
+      - name: Run tests
+        working-directory: zk-prover
+        run: cargo test --verbose
+
+      - name: Run benchmarks (compile only)
+        working-directory: zk-prover
+        run: cargo bench --no-run
+
+      - name: Upload benchmark artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: zk-prover-benchmarks
+          path: zk-prover/target/release/deps/proof_bench-*
