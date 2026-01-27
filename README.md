@@ -176,9 +176,22 @@ export POLL_FACTORY_ADDRESS=<FACTORY_ADDRESS>
 
 **Step 5: Vote on the Poll**
 ```bash
-./poll-cli vote --poll 0xYOUR_POLL_ADDRESS --choice 0
+./poll-cli vote \
+  --private-key ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
+  --poll 0xYOUR_POLL_ADDRESS \
+  --choice 0
 
-# Output: Vote committed! Nonce: 0x... (SAVE THIS for revealing later!)
+# Output: Vote committed! Transaction: 0x...
+# IMPORTANT: Save the nonce shown - you'll need it to reveal!
+```
+
+**Note**: For testing, polls must use a merkle root that matches the voter. For a single voter:
+```bash
+# Calculate correct merkle root for voter 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266:
+~/.foundry/bin/cast keccak 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+# Returns: 0xe9707d0e6171f728f7473c24cc0432a9b07eaaf1efed6a137a4a8c12c79552d9
+
+# Use this as --voter-root when creating the poll
 ```
 
 **Step 6: Close the Poll (fast-forward time for testing)**
@@ -395,6 +408,21 @@ export POLL_FACTORY_ADDRESS=0x...  # Use actual address from deployment
 lsof -i :8545  # Find the process
 kill -9 <PID>  # Kill it
 ```
+
+### Vote transaction fails
+
+**Problem**: Vote transaction fails with "InvalidMerkleProof" error
+
+**Solution**: The merkle root must be calculated correctly. For single-voter testing:
+```bash
+# CORRECT way (abi.encodePacked - no padding):
+cast keccak 0xVOTER_ADDRESS
+
+# WRONG way (abi.encode - adds padding):
+cast keccak $(cast abi-encode "f(address)" 0xVOTER_ADDRESS)
+```
+
+Use the correct hash as `--voter-root` when creating your poll.
 
 ---
 

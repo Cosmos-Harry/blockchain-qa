@@ -5,8 +5,11 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
+	"math/big"
 
+	"github.com/Cosmos-Harry/blockchain-qa/cli/internal/bindings"
 	"github.com/Cosmos-Harry/blockchain-qa/cli/internal/wallet"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
 )
 
@@ -62,9 +65,13 @@ func runReveal(cmd *cobra.Command, args []string) error {
 	commitment := computeCommitment(revealChoice, nonceBytes, w.Address())
 	log.Printf("Recomputed Commitment: %s\n", commitment.Hex())
 
-	// TODO: Call Poll.revealVote() when contract bindings are generated
-	// For now, simulate the call
-	log.Println("\nSimulating revealVote transaction...")
+	// Create Poll contract instance
+	log.Println("\nSubmitting reveal to contract...")
+	pollAddr := common.HexToAddress(pollAddress)
+	poll, err := bindings.NewPoll(pollAddr, w.GetClient())
+	if err != nil {
+		return fmt.Errorf("failed to create poll instance: %w", err)
+	}
 
 	// Get auth
 	auth, err := w.GetAuth(ctx)
@@ -75,10 +82,33 @@ func runReveal(cmd *cobra.Command, args []string) error {
 	log.Printf("  Gas Limit: %d\n", auth.GasLimit)
 	log.Printf("  Gas Price: %s wei\n", auth.GasPrice.String())
 
-	// Simulate successful transaction
-	txHash := "0x1234abcd5678ef901234abcd5678ef901234abcd5678ef901234abcd5678ef90"
+	// Convert nonce to [32]byte
+	var salt [32]byte
+	copy(salt[:], nonceBytes)
+
+	// Call revealVote on the contract
+	tx, err := poll.RevealVote(auth, big.NewInt(int64(revealChoice)), salt)
+	if err != nil {
+		return fmt.Errorf("failed to reveal vote: %w", err)
+	}
+
+	log.Printf("\nTransaction submitted: %s\n", tx.Hash().Hex())
+	log.Println("Waiting for confirmation...")
+
+	// Wait for transaction receipt
+	receipt, err := w.WaitForReceipt(ctx, tx.Hash())
+	if err != nil {
+		return fmt.Errorf("failed to get receipt: %w", err)
+	}
+
+	if receipt.Status == 0 {
+		return fmt.Errorf("transaction failed")
+	}
+
 	log.Printf("\nVote revealed successfully!\n")
-	log.Printf("Transaction Hash: %s\n", txHash)
+	log.Printf("Transaction Hash: %s\n", tx.Hash().Hex())
+	log.Printf("Block Number: %d\n", receipt.BlockNumber.Uint64())
+	log.Printf("Gas Used: %d\n", receipt.GasUsed)
 
 	return nil
 }

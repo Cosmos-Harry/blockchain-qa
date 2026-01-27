@@ -1207,3 +1207,28 @@ With the **one-command test execution** (`make test`) and **comprehensive CI pip
 **Last Updated**: 2025-01-25
 **Authors**: Blockchain QA Team
 **Review Cycle**: Quarterly
+
+## Edge Cases and Known Issues
+
+### Merkle Proof Calculation Edge Case
+
+**Issue**: When creating merkle proofs for voter eligibility, the leaf hash must be calculated using `keccak256(abi.encodePacked(address))` NOT `keccak256(abi.encode(address))`.
+
+**Why it matters**:
+- `abi.encodePacked(address)` = 20 bytes (no padding)
+- `abi.encode(address)` = 32 bytes (left-padded with zeros)
+- These produce different hashes!
+
+**For single-voter testing**:
+```bash
+# CORRECT merkle root for single voter
+cast keccak 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+# Returns: 0xe9707d0e6171f728f7473c24cc0432a9b07eaaf1efed6a137a4a8c12c79552d9
+
+# WRONG (but common mistake)
+cast keccak $(cast abi-encode "f(address)" 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266)
+# Returns different hash due to padding
+```
+
+**Testing impact**: This is why some vote transactions were failing - the merkle root didn't match the leaf hash calculation in the contract.
+
