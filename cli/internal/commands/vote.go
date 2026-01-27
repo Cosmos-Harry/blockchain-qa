@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/Cosmos-Harry/blockchain-qa/cli/internal/bindings"
 	"github.com/Cosmos-Harry/blockchain-qa/cli/internal/wallet"
@@ -84,9 +85,25 @@ func runVote(cmd *cobra.Command, args []string) error {
 	log.Printf("  Gas Limit: %d\n", auth.GasLimit)
 	log.Printf("  Gas Price: %s wei\n", auth.GasPrice.String())
 
-	// Parse merkle proof if provided
+	// Parse merkle proof if provided, or use empty array for single-voter trees
 	var proofHashes [][32]byte
-	// For now, we'll pass empty proof (TODO: implement merkle proof parsing)
+	if merkleProof != "" {
+		// Parse comma-separated hex hashes
+		proofStrs := strings.Split(merkleProof, ",")
+		proofHashes = make([][32]byte, len(proofStrs))
+		for i, ps := range proofStrs {
+			ps = strings.TrimSpace(ps)
+			hashBytes := common.FromHex(ps)
+			if len(hashBytes) != 32 {
+				return fmt.Errorf("invalid proof hash at index %d: expected 32 bytes, got %d", i, len(hashBytes))
+			}
+			copy(proofHashes[i][:], hashBytes)
+		}
+	}
+	// If no proof provided, use empty array (works for single-voter merkle trees)
+	log.Printf("Merkle proof hashes count: %d\n", len(proofHashes))
+	log.Printf("Commitment: %s\n", commitment.Hex())
+	log.Printf("ZK Proof length: %d bytes\n", len(zkProof))
 
 	// Call commitVote on the contract
 	tx, err := poll.CommitVote(auth, commitment, zkProof, proofHashes)
