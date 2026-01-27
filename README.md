@@ -205,12 +205,32 @@ cast rpc evm_mine --rpc-url http://localhost:8545
 ./poll-cli reveal --poll 0xYOUR_POLL_ADDRESS --choice 0 --nonce 0xYOUR_SAVED_NONCE
 ```
 
-**Step 8: View Results**
+**Step 8: View Poll Status and Results**
 ```bash
-./poll-cli results --poll 0xYOUR_POLL_ADDRESS
+# View poll details, vote statistics, and results (if tallied)
+./poll-cli view-results --poll 0xYOUR_POLL_ADDRESS
 
-# Shows final tally!
+# Example output:
+# === Poll Details ===
+# Question: Can we vote now?
+# State: Closed
+# Created: 2026-01-27T22:23:29+05:30
+# Closes: 2026-01-27T23:23:29+05:30
+#
+# === Options ===
+# 0. Yes
+# 1. No
+# 2. Maybe
+#
+# === Vote Statistics ===
+# Total Committed: 1
+# Total Revealed: 0
+# Pending Reveals: 1
+#
+# Results not yet tallied (poll must be closed and votes revealed)
 ```
+
+**Note**: The `view-results` command queries the contract directly, so it works without requiring the API server or indexer to be running.
 
 ### Option 3: Full System with API (Requires Docker)
 
@@ -467,6 +487,38 @@ cargo fmt
 
 # Lint
 cargo clippy
+```
+
+### CLI Tool
+
+```bash
+# Build the CLI
+cd cli && make build
+
+# Create a poll
+./poll-cli create-poll \
+  --private-key <KEY> \
+  --question "Your question?" \
+  --options "Option1,Option2,Option3" \
+  --duration 3600 \
+  --voter-root 0x... \
+  --factory <FACTORY_ADDRESS>
+
+# Vote on a poll
+./poll-cli vote \
+  --private-key <KEY> \
+  --poll <POLL_ADDRESS> \
+  --choice 0
+
+# Reveal your vote (after poll closes)
+./poll-cli reveal \
+  --private-key <KEY> \
+  --poll <POLL_ADDRESS> \
+  --choice 0 \
+  --nonce <SAVED_NONCE>
+
+# View poll results (no private key needed)
+./poll-cli view-results --poll <POLL_ADDRESS>
 ```
 
 ### Blockchain Interaction

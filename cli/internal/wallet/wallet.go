@@ -24,6 +24,29 @@ type Wallet struct {
 	chainID    *big.Int
 }
 
+// NewReadOnlyWallet creates a wallet for read-only operations (no private key needed)
+func NewReadOnlyWallet(ctx context.Context) (*Wallet, error) {
+	rpcURL := os.Getenv("RPC_URL")
+	if rpcURL == "" {
+		rpcURL = "http://localhost:8545"
+	}
+
+	client, err := ethclient.Dial(rpcURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to Ethereum node: %w", err)
+	}
+
+	chainID, err := client.ChainID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get chain ID: %w", err)
+	}
+
+	return &Wallet{
+		client:  client,
+		chainID: chainID,
+	}, nil
+}
+
 // NewWallet creates a new wallet from a private key
 func NewWallet(ctx context.Context, privateKeyHex string) (*Wallet, error) {
 	rpcURL := os.Getenv("RPC_URL")
