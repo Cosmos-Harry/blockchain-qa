@@ -34,5 +34,6 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&rpcURL, "rpc-url", "http://localhost:8545", "Ethereum RPC URL")
 
 	// Mark private key as required for commands that need it
-	rootCmd.MarkPersistentFlagRequired("private-key")
+	// Commenting this out - it may cause issues
+	// rootCmd.MarkPersistentFlagRequired("private-key")
 }

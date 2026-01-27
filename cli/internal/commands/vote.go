@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/Cosmos-Harry/blockchain-qa/cli/internal/bindings"
 	"github.com/Cosmos-Harry/blockchain-qa/cli/internal/wallet"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -66,9 +67,13 @@ func runVote(cmd *cobra.Command, args []string) error {
 	zkProof := generateDummyZKProof()
 	log.Printf("ZK Proof: %s\n", hex.EncodeToString(zkProof))
 
-	// TODO: Call Poll.commitVote() when contract bindings are generated
-	// For now, simulate the call
-	log.Println("\nSimulating commitVote transaction...")
+	// Create Poll contract instance
+	log.Println("\nSubmitting vote to contract...")
+	pollAddr := common.HexToAddress(pollAddress)
+	poll, err := bindings.NewPoll(pollAddr, w.GetClient())
+	if err != nil {
+		return fmt.Errorf("failed to create poll instance: %w", err)
+	}
 
 	// Get auth
 	auth, err := w.GetAuth(ctx)
@@ -79,10 +84,33 @@ func runVote(cmd *cobra.Command, args []string) error {
 	log.Printf("  Gas Limit: %d\n", auth.GasLimit)
 	log.Printf("  Gas Price: %s wei\n", auth.GasPrice.String())
 
-	// Simulate successful transaction
-	txHash := "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+	// Parse merkle proof if provided
+	var proofHashes [][32]byte
+	// For now, we'll pass empty proof (TODO: implement merkle proof parsing)
+
+	// Call commitVote on the contract
+	tx, err := poll.CommitVote(auth, commitment, zkProof, proofHashes)
+	if err != nil {
+		return fmt.Errorf("failed to commit vote: %w", err)
+	}
+
+	log.Printf("\nTransaction submitted: %s\n", tx.Hash().Hex())
+	log.Println("Waiting for confirmation...")
+
+	// Wait for transaction receipt
+	receipt, err := w.WaitForReceipt(ctx, tx.Hash())
+	if err != nil {
+		return fmt.Errorf("failed to get receipt: %w", err)
+	}
+
+	if receipt.Status == 0 {
+		return fmt.Errorf("transaction failed")
+	}
+
 	log.Printf("\nVote committed successfully!\n")
-	log.Printf("Transaction Hash: %s\n", txHash)
+	log.Printf("Transaction Hash: %s\n", tx.Hash().Hex())
+	log.Printf("Block Number: %d\n", receipt.BlockNumber.Uint64())
+	log.Printf("Gas Used: %d\n", receipt.GasUsed)
 	log.Printf("\nIMPORTANT: Save your nonce to reveal later:\n")
 	log.Printf("Nonce: %s\n", hex.EncodeToString(nonce))
 

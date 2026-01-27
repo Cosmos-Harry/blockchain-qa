@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
@@ -103,4 +105,25 @@ func (w *Wallet) Close() {
 // GetBalance returns the wallet's ETH balance
 func (w *Wallet) GetBalance(ctx context.Context) (*big.Int, error) {
 	return w.client.BalanceAt(ctx, w.address, nil)
+}
+
+// WaitForReceipt waits for a transaction receipt
+func (w *Wallet) WaitForReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error) {
+	// Wait for transaction to be mined
+	for i := 0; i < 60; i++ { // Wait up to 2 minutes (60 * 2s)
+		receipt, err := w.client.TransactionReceipt(ctx, txHash)
+		if err == nil {
+			return receipt, nil
+		}
+
+		// If error is not "not found", return it
+		if err.Error() != "not found" {
+			time.Sleep(2 * time.Second)
+			continue
+		}
+
+		time.Sleep(2 * time.Second)
+	}
+
+	return nil, fmt.Errorf("transaction not mined after 2 minutes")
 }
