@@ -166,36 +166,35 @@ export POLL_FACTORY_ADDRESS=<FACTORY_ADDRESS>
 ```
 
 **Step 4: Create Your First Poll**
-```bash
-# The --voter-root is required for the Merkle proof check.
-# For a single voter (account 0), the root is keccak256(voter_address):
-#   0xe9707d0e6171f728f7473c24cc0432a9b07eaaf1efed6a137a4a8c12c79552d9
 
+Each command automatically saves state to `.poll-state.json` so the next command picks up where you left off — no copy-pasting addresses or nonces needed.
+
+```bash
 ./poll-cli create-poll \
   --private-key ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
   --question "What's your favorite color?" \
   --options "Red,Blue,Green" \
   --duration 3600 \
-  --voter-root 0xe9707d0e6171f728f7473c24cc0432a9b07eaaf1efed6a137a4a8c12c79552d9
+  --factory 0xYOUR_FACTORY_ADDRESS
 
-# Output includes: Poll Address: 0x... (save this!)
+# Poll address is saved to .poll-state.json automatically
 ```
+
+> `--voter-root` defaults to Anvil account 0's single-voter Merkle root, so single-voter testing works out of the box.
 
 **Step 5: Vote on the Poll**
 ```bash
+# --poll is read from state automatically
 ./poll-cli vote \
   --private-key ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
-  --poll 0xYOUR_POLL_ADDRESS \
   --choice 0
 
-# Output includes: Vote committed successfully!
-# IMPORTANT: Save the Nonce shown - you'll need it to reveal!
-# Example: Nonce: a1b2c3d4e5f6... (hex string, no 0x prefix)
+# Nonce and choice are saved to state for the reveal step
 ```
 
 **Step 6: Close the Poll (fast-forward time, then trigger oracle)**
 
-The poll doesn't auto-close when time passes — the MockOracle must call `closePoll()`. Two steps:
+The poll doesn't auto-close when time passes — the MockOracle must call `closePoll()`:
 
 ```bash
 # 1. Fast-forward time past the poll duration:
@@ -207,26 +206,23 @@ curl -s -X POST -H "Content-Type: application/json" \
   --data '{"jsonrpc":"2.0","method":"evm_mine","params":[],"id":2}' \
   http://localhost:8545
 
-# 2. Trigger the oracle to close the poll:
-#    ORACLE_ADDRESS is from the deploy output (grep broadcast logs for "MockOracle")
+# 2. Trigger the oracle (poll address read from state, oracle saved after first use):
 ./poll-cli close-poll \
   --private-key ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
-  --poll 0xYOUR_POLL_ADDRESS \
   --oracle 0xYOUR_ORACLE_ADDRESS
 ```
 
 **Step 7: Reveal Your Vote**
 ```bash
+# All values (poll, choice, nonce) read from state — just the private key needed:
 ./poll-cli reveal \
-  --poll 0xYOUR_POLL_ADDRESS \
-  --choice 0 \
-  --nonce 0xYOUR_SAVED_NONCE
+  --private-key ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
 ```
 
 **Step 8: View Poll Status and Results**
 ```bash
-# View poll details, vote statistics, and results (if tallied)
-./poll-cli view-results --poll 0xYOUR_POLL_ADDRESS
+# Poll address read from state — no flags needed:
+./poll-cli view-results
 
 # Example output:
 # === Poll Details ===

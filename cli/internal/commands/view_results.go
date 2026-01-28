@@ -22,12 +22,19 @@ var viewResultsCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(viewResultsCmd)
 
-	viewResultsCmd.Flags().StringVar(&pollAddress, "poll", "", "Poll contract address")
-	mustMarkRequired(viewResultsCmd, "poll")
+	viewResultsCmd.Flags().StringVar(&pollAddress, "poll", "", "Poll contract address (or reads from state)")
 }
 
 func runViewResults(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
+
+	// Resolve poll address from flag or saved state
+	state := loadState()
+	resolved, err := resolveFlag(pollAddress, state.PollAddress, "poll")
+	if err != nil {
+		return err
+	}
+	pollAddress = resolved
 
 	log.Printf("Fetching results for poll: %s\n", pollAddress)
 

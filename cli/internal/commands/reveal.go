@@ -29,13 +29,9 @@ var revealCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(revealCmd)
 
-	revealCmd.Flags().StringVar(&pollAddress, "poll", "", "Poll contract address")
-	revealCmd.Flags().Uint64Var(&revealChoice, "choice", 0, "Vote choice (must match commitment)")
-	revealCmd.Flags().StringVar(&revealNonce, "nonce", "", "Nonce used in commitment (hex string)")
-
-	mustMarkRequired(revealCmd, "poll")
-	mustMarkRequired(revealCmd, "choice")
-	mustMarkRequired(revealCmd, "nonce")
+	revealCmd.Flags().StringVar(&pollAddress, "poll", "", "Poll contract address (or reads from state)")
+	revealCmd.Flags().Uint64Var(&revealChoice, "choice", 0, "Vote choice (or reads from state)")
+	revealCmd.Flags().StringVar(&revealNonce, "nonce", "", "Nonce used in commitment (or reads from state)")
 }
 
 func runReveal(cmd *cobra.Command, args []string) error {
@@ -47,6 +43,24 @@ func runReveal(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to create wallet: %w", err)
 	}
 	defer w.Close()
+
+	// Resolve poll, nonce, and choice from flags or saved state
+	state := loadState()
+	resolved, err := resolveFlag(pollAddress, state.PollAddress, "poll")
+	if err != nil {
+		return err
+	}
+	pollAddress = resolved
+
+	resolved, err = resolveFlag(revealNonce, state.Nonce, "nonce")
+	if err != nil {
+		return err
+	}
+	revealNonce = resolved
+
+	if !cmd.Flags().Changed("choice") && state.Choice > 0 {
+		revealChoice = state.Choice
+	}
 
 	log.Printf("Revealing vote from address: %s\n", w.Address().Hex())
 	log.Printf("Poll: %s\n", pollAddress)

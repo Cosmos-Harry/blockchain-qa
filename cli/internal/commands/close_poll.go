@@ -9,7 +9,6 @@ import (
 	"github.com/Cosmos-Harry/blockchain-qa/cli/internal/wallet"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/spf13/cobra"
 )
 
@@ -28,11 +27,8 @@ var closePollCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(closePollCmd)
 
-	closePollCmd.Flags().StringVar(&closePollAddress, "poll", "", "Poll contract address")
-	closePollCmd.Flags().StringVar(&oracleAddress, "oracle", "", "MockOracle contract address")
-
-	mustMarkRequired(closePollCmd, "poll")
-	mustMarkRequired(closePollCmd, "oracle")
+	closePollCmd.Flags().StringVar(&closePollAddress, "poll", "", "Poll contract address (or reads from state)")
+	closePollCmd.Flags().StringVar(&oracleAddress, "oracle", "", "MockOracle contract address (or reads from state)")
 }
 
 // MockOracle ABI (only fulfillRequest method needed)
@@ -46,6 +42,26 @@ func runClosePoll(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to create wallet: %w", err)
 	}
 	defer w.Close()
+
+	// Resolve poll and oracle addresses from flags or saved state
+	state := loadState()
+	resolved, err := resolveFlag(closePollAddress, state.PollAddress, "poll")
+	if err != nil {
+		return err
+	}
+	closePollAddress = resolved
+
+	resolved, err = resolveFlag(oracleAddress, state.OracleAddress, "oracle")
+	if err != nil {
+		return err
+	}
+	oracleAddress = resolved
+
+	// Persist oracle address for future use
+	if oracleAddress != state.OracleAddress {
+		state.OracleAddress = oracleAddress
+		_ = saveState(state)
+	}
 
 	log.Printf("Closing poll %s via oracle %s\n", closePollAddress, oracleAddress)
 
@@ -61,12 +77,6 @@ func runClosePoll(cmd *cobra.Command, args []string) error {
 	data, err := oracleABI.Pack("fulfillRequest", pollAddr)
 	if err != nil {
 		return fmt.Errorf("failed to pack fulfillRequest: %w", err)
-	}
-
-	// Verify selector matches expected
-	expectedSig := crypto.Keccak256([]byte("fulfillRequest(address)"))[:4]
-	if fmt.Sprintf("%x", data[:4]) != fmt.Sprintf("%x", expectedSig) {
-		return fmt.Errorf("ABI pack produced unexpected selector")
 	}
 
 	auth, err := w.GetAuth(ctx)

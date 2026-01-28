@@ -35,11 +35,9 @@ var voteCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(voteCmd)
 
-	voteCmd.Flags().StringVar(&pollAddress, "poll", "", "Poll contract address")
+	voteCmd.Flags().StringVar(&pollAddress, "poll", "", "Poll contract address (or reads from state)")
 	voteCmd.Flags().Uint64Var(&choice, "choice", 0, "Vote choice (0-indexed)")
 	voteCmd.Flags().StringVar(&merkleProof, "proof", "", "Merkle proof for voter eligibility (comma-separated hashes)")
-
-	mustMarkRequired(voteCmd, "poll")
 }
 
 func runVote(cmd *cobra.Command, args []string) error {
@@ -51,6 +49,14 @@ func runVote(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to create wallet: %w", err)
 	}
 	defer w.Close()
+
+	// Resolve poll address from flag or saved state
+	state := loadState()
+	resolved, err := resolveFlag(pollAddress, state.PollAddress, "poll")
+	if err != nil {
+		return err
+	}
+	pollAddress = resolved
 
 	log.Printf("Voting from address: %s\n", w.Address().Hex())
 	log.Printf("Poll: %s\n", pollAddress)
@@ -130,12 +136,18 @@ func runVote(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("transaction reverted: %s", revertReason)
 	}
 
+	// Save nonce and choice to state for reveal step
+	state.Nonce = hex.EncodeToString(nonce)
+	state.Choice = choice
+	if err := saveState(state); err != nil {
+		log.Printf("Warning: failed to save state: %v\n", err)
+	}
+
 	log.Printf("\nVote committed successfully!\n")
 	log.Printf("Transaction Hash: %s\n", tx.Hash().Hex())
 	log.Printf("Block Number: %d\n", receipt.BlockNumber.Uint64())
 	log.Printf("Gas Used: %d\n", receipt.GasUsed)
-	log.Printf("\nIMPORTANT: Save your nonce to reveal later:\n")
-	log.Printf("Nonce: %s\n", hex.EncodeToString(nonce))
+	log.Printf("Nonce saved to state (needed for reveal)\n")
 
 	return nil
 }

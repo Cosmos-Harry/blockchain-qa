@@ -65,12 +65,16 @@ func runCreatePoll(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("at least 2 options are required")
 	}
 
-	// Get factory address from flag or environment
+	// Get factory address from flag, environment, or saved state
+	state := loadState()
 	if pollFactoryAddr == "" {
 		pollFactoryAddr = os.Getenv("POLL_FACTORY_ADDRESS")
-		if pollFactoryAddr == "" {
-			return fmt.Errorf("factory address not specified (use --factory flag or set POLL_FACTORY_ADDRESS env var)")
-		}
+	}
+	if pollFactoryAddr == "" {
+		pollFactoryAddr = state.FactoryAddress
+	}
+	if pollFactoryAddr == "" {
+		return fmt.Errorf("factory address not specified (use --factory flag, set POLL_FACTORY_ADDRESS env var, or save it to state)")
 	}
 
 	// If no voter merkle root specified, default to single-voter root for Anvil account 0.
@@ -142,12 +146,22 @@ func runCreatePoll(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// Save state for subsequent commands
+	state.PollAddress = pollAddress.Hex()
+	state.FactoryAddress = pollFactoryAddr
+	state.Nonce = ""  // reset vote state for new poll
+	state.Choice = 0
+	if err := saveState(state); err != nil {
+		log.Printf("Warning: failed to save state: %v\n", err)
+	}
+
 	log.Printf("\nPoll created successfully!\n")
 	log.Printf("Poll Address: %s\n", pollAddress.Hex())
 	log.Printf("Transaction: %s\n", tx.Hash().Hex())
 	log.Printf("Block Number: %d\n", receipt.BlockNumber.Uint64())
 	log.Printf("Gas Used: %d\n", receipt.GasUsed)
 	log.Printf("Closes at: %s\n", time.Now().Add(time.Duration(duration)*time.Second).Format(time.RFC3339))
+	log.Printf("State saved to %s\n", stateFileName)
 
 	return nil
 }
