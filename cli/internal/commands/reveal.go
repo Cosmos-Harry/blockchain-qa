@@ -10,6 +10,9 @@ import (
 
 	"github.com/Cosmos-Harry/blockchain-qa/cli/internal/bindings"
 	"github.com/Cosmos-Harry/blockchain-qa/cli/internal/wallet"
+	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
 )
@@ -118,7 +121,8 @@ func runReveal(cmd *cobra.Command, args []string) error {
 	}
 
 	if receipt.Status == 0 {
-		return fmt.Errorf("transaction failed")
+		revertReason := decodeRevealRevertReason(ctx, w, pollAddr, auth, big.NewInt(int64(revealChoice)), salt)
+		return fmt.Errorf("transaction reverted: %s", revertReason)
 	}
 
 	log.Printf("\nVote revealed successfully!\n")
@@ -127,4 +131,34 @@ func runReveal(cmd *cobra.Command, args []string) error {
 	log.Printf("Gas Used: %d\n", receipt.GasUsed)
 
 	return nil
+}
+
+func decodeRevealRevertReason(ctx context.Context, w *wallet.Wallet, pollAddr common.Address, auth *bind.TransactOpts, choice *big.Int, salt [32]byte) string {
+	pollABI, err := abi.JSON(strings.NewReader(bindings.PollABI))
+	if err != nil {
+		return "unknown (failed to parse ABI)"
+	}
+
+	data, err := pollABI.Pack("revealVote", choice, salt)
+	if err != nil {
+		return "unknown (failed to pack call data)"
+	}
+
+	msg := ethereum.CallMsg{
+		From: auth.From,
+		To:   &pollAddr,
+		Data: data,
+	}
+
+	_, err = w.GetClient().CallContract(ctx, msg, nil)
+	if err != nil {
+		errStr := err.Error()
+		for _, e := range pollABI.Errors {
+			if strings.Contains(errStr, fmt.Sprintf("0x%x", e.ID[:4])) {
+				return e.Name
+			}
+		}
+		return errStr
+	}
+	return "unknown"
 }
