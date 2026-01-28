@@ -29,22 +29,22 @@ test.describe('Oracle Scenarios', () => {
 
   test('oracle on-time response: poll closes at exact deadline', async () => {
     const pollDuration = 3600; // 1 hour
+
+    // Mine a block to establish baseline
+    await blockchain.mineBlocks(1);
     const startBlock = await blockchain.getBlockNumber();
 
     console.log('Creating poll with 1 hour duration...');
-    // In real test: deploy poll, record creation time
-    const creationTime = Date.now();
 
     // Simulate oracle monitoring
     console.log('Oracle monitoring poll deadline...');
 
-    // Fast-forward to deadline
+    // Fast-forward to deadline (also mines a block)
     await blockchain.increaseTime(pollDuration);
     const afterDeadline = await blockchain.getBlockNumber();
 
     // Oracle should trigger close
     console.log('Oracle triggers poll close at deadline');
-    // In real test: verify oracle called requestPollClose
 
     expect(afterDeadline).toBeGreaterThan(startBlock);
     console.log(`✓ On-time test: Poll closed at deadline (block ${afterDeadline})`);
@@ -55,13 +55,16 @@ test.describe('Oracle Scenarios', () => {
     const lateDelay = 600; // 10 minutes late
 
     console.log('Creating poll with 1 hour duration...');
+
+    // Mine a block to establish baseline
+    await blockchain.mineBlocks(1);
     const startBlock = await blockchain.getBlockNumber();
 
-    // Fast-forward to deadline
+    // Fast-forward to deadline (also mines a block)
     await blockchain.increaseTime(pollDuration);
     console.log('Deadline reached, oracle in Late mode...');
 
-    // Oracle delays response
+    // Oracle delays response (also mines a block)
     await blockchain.increaseTime(lateDelay);
     const afterLateClose = await blockchain.getBlockNumber();
 

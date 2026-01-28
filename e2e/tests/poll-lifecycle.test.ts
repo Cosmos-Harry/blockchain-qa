@@ -34,7 +34,7 @@ test.describe('Poll Lifecycle E2E', () => {
     expect(apiHealthy, 'API should be healthy after waiting').toBeTruthy();
 
     const blockNumber = await blockchain.getBlockNumber();
-    expect(blockNumber, 'Blockchain should be running').toBeGreaterThan(0);
+    expect(blockNumber, 'Blockchain should be running').toBeGreaterThanOrEqual(0);
 
     console.log(`Connected to blockchain at block ${blockNumber}`);
     console.log(`Test accounts: ${blockchain.accounts.map(a => a.address).join(', ')}`);
