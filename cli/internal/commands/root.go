@@ -37,3 +37,9 @@ func init() {
 	// Commenting this out - it may cause issues
 	// rootCmd.MarkPersistentFlagRequired("private-key")
 }
+
+func mustMarkRequired(cmd *cobra.Command, flag string) {
+	if err := cmd.MarkFlagRequired(flag); err != nil {
+		panic(err)
+	}
+}

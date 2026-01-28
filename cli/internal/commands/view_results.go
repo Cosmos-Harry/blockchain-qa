@@ -23,7 +23,7 @@ func init() {
 	rootCmd.AddCommand(viewResultsCmd)
 
 	viewResultsCmd.Flags().StringVar(&pollAddress, "poll", "", "Poll contract address")
-	viewResultsCmd.MarkFlagRequired("poll")
+	mustMarkRequired(viewResultsCmd, "poll")
 }
 
 func runViewResults(cmd *cobra.Command, args []string) error {

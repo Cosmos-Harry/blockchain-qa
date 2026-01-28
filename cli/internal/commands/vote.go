@@ -35,7 +35,7 @@ func init() {
 	voteCmd.Flags().Uint64Var(&choice, "choice", 0, "Vote choice (0-indexed)")
 	voteCmd.Flags().StringVar(&merkleProof, "proof", "", "Merkle proof for voter eligibility (comma-separated hashes)")
 
-	voteCmd.MarkFlagRequired("poll")
+	mustMarkRequired(voteCmd, "poll")
 }
 
 func runVote(cmd *cobra.Command, args []string) error {
@@ -148,6 +148,8 @@ func generateDummyZKProof() []byte {
 	// In production, this would call the Rust ZK prover via FFI or subprocess
 	// The prover would generate a real Groth16 proof
 	proof := make([]byte, 192) // Groth16 proofs are ~192 bytes
-	rand.Read(proof)
+	if _, err := rand.Read(proof); err != nil {
+		log.Fatalf("Failed to generate random proof: %v", err)
+	}
 	return proof
 }

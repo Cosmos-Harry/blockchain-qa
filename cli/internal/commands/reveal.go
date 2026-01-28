@@ -32,9 +32,9 @@ func init() {
 	revealCmd.Flags().Uint64Var(&revealChoice, "choice", 0, "Vote choice (must match commitment)")
 	revealCmd.Flags().StringVar(&revealNonce, "nonce", "", "Nonce used in commitment (hex string)")
 
-	revealCmd.MarkFlagRequired("poll")
-	revealCmd.MarkFlagRequired("choice")
-	revealCmd.MarkFlagRequired("nonce")
+	mustMarkRequired(revealCmd, "poll")
+	mustMarkRequired(revealCmd, "choice")
+	mustMarkRequired(revealCmd, "nonce")
 }
 
 func runReveal(cmd *cobra.Command, args []string) error {

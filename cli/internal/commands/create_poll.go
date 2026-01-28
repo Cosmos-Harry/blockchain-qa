@@ -39,8 +39,8 @@ func init() {
 	createPollCmd.Flags().StringVar(&voterMerkleRoot, "voter-root", "", "Merkle root of eligible voters (defaults to zero root = anyone can vote)")
 	createPollCmd.Flags().StringVar(&pollFactoryAddr, "factory", "", "PollFactory contract address (uses POLL_FACTORY_ADDRESS env var if not specified)")
 
-	createPollCmd.MarkFlagRequired("question")
-	createPollCmd.MarkFlagRequired("options")
+	mustMarkRequired(createPollCmd, "question")
+	mustMarkRequired(createPollCmd, "options")
 }
 
 func runCreatePoll(cmd *cobra.Command, args []string) error {
