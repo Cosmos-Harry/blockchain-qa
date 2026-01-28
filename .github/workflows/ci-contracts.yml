@@ -43,8 +43,7 @@ jobs:
         run: forge fmt --check
 
       - name: Run Slither static analysis
-        uses: crytic/slither-action@v0.3.0
-        with:
-          target: 'contracts/src'
-          fail-on: none
-          slither-args: --filter-paths "test|lib"
+        working-directory: contracts
+        run: |
+          pip install slither-analyzer --quiet
+          slither . --filter-paths "test|lib" || true
