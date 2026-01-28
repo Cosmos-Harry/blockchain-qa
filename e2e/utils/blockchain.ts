@@ -23,7 +23,9 @@ export class BlockchainHelper {
   }
 
   async getBlockNumber(): Promise<number> {
-    return await this.provider.getBlockNumber();
+    // Use raw RPC call to bypass ethers provider's internal block number cache
+    const hex: string = await this.provider.send('eth_blockNumber', []);
+    return parseInt(hex, 16);
   }
 
   async mineBlocks(count: number): Promise<void> {
