@@ -33,11 +33,7 @@ interface IPoll {
     event ResultsTallied(uint256[] results, uint256 timestamp);
 
     /// @notice Commit a vote with ZK proof
-    function commitVote(
-        bytes32 commitment,
-        bytes calldata zkProof,
-        bytes32[] calldata merklePath
-    ) external;
+    function commitVote(bytes32 commitment, bytes calldata zkProof, bytes32[] calldata merklePath) external;
 
     /// @notice Reveal a committed vote
     function revealVote(uint256 choice, bytes32 salt) external;

@@ -24,8 +24,10 @@ impl Prover {
         let circuit = VoteProofCircuit::new_without_witness(max_choice);
 
         // Generate proving key (contains verifying key)
-        let proving_key = ark_groth16::Groth16::<Bn254>::generate_random_parameters_with_reduction(circuit, &mut rng)
-            .map_err(|e| ProverError::SynthesisError(e.to_string()))?;
+        let proving_key = ark_groth16::Groth16::<Bn254>::generate_random_parameters_with_reduction(
+            circuit, &mut rng,
+        )
+        .map_err(|e| ProverError::SynthesisError(e.to_string()))?;
 
         let verifying_key = proving_key.vk.clone();
 
@@ -60,13 +62,16 @@ impl Prover {
         let circuit = VoteProofCircuit::new_with_witness(choice, nonce, voter, max_choice);
 
         // Compute commitment (public input)
-        let commitment =
-            crate::circuit::vote_proof::compute_commitment(choice, &nonce, &voter);
+        let commitment = crate::circuit::vote_proof::compute_commitment(choice, &nonce, &voter);
         let max_choice_fr = Fr::from(max_choice);
 
         // Generate proof
-        let proof = ark_groth16::Groth16::<Bn254>::create_random_proof_with_reduction(circuit, &self.proving_key, &mut rng)
-            .map_err(|e| ProverError::ProofGenerationFailed(e.to_string()))?;
+        let proof = ark_groth16::Groth16::<Bn254>::create_random_proof_with_reduction(
+            circuit,
+            &self.proving_key,
+            &mut rng,
+        )
+        .map_err(|e| ProverError::ProofGenerationFailed(e.to_string()))?;
 
         // Serialize proof
         let mut proof_bytes = Vec::new();
@@ -89,9 +94,8 @@ impl Prover {
     /// Verify a vote proof
     pub fn verify_vote(&self, proof: &VoteProof) -> ProverResult<bool> {
         // Deserialize proof
-        let proof_obj =
-            Proof::deserialize_compressed(&proof.proof[..])
-                .map_err(|e| ProverError::SerializationError(e.to_string()))?;
+        let proof_obj = Proof::deserialize_compressed(&proof.proof[..])
+            .map_err(|e| ProverError::SerializationError(e.to_string()))?;
 
         // Parse public inputs (commitment, max_choice)
         if proof.public_inputs.len() < 2 {
@@ -109,8 +113,9 @@ impl Prover {
         let prepared_vk = ark_groth16::prepare_verifying_key(&self.verifying_key);
 
         // Verify proof
-        let result = ark_groth16::Groth16::<Bn254>::verify_proof(&prepared_vk, &proof_obj, &public_inputs)
-            .map_err(|_| ProverError::VerificationFailed)?;
+        let result =
+            ark_groth16::Groth16::<Bn254>::verify_proof(&prepared_vk, &proof_obj, &public_inputs)
+                .map_err(|_| ProverError::VerificationFailed)?;
 
         Ok(result)
     }
@@ -148,8 +153,7 @@ fn fr_to_hex_string(fr: &Fr) -> String {
 
 /// Convert hex string to field element
 fn hex_string_to_fr(hex: &str) -> ProverResult<Fr> {
-    let bytes = hex::decode(hex)
-        .map_err(|e| ProverError::SerializationError(e.to_string()))?;
+    let bytes = hex::decode(hex).map_err(|e| ProverError::SerializationError(e.to_string()))?;
 
     Fr::deserialize_compressed(&bytes[..])
         .map_err(|e| ProverError::SerializationError(e.to_string()))

@@ -21,7 +21,7 @@ contract Poll is IPoll {
     string public override question;
 
     /// @notice Available options
-    string[] public override options;
+    string[] private _options;
 
     /// @notice Poll creator
     address public immutable creator;
@@ -74,7 +74,7 @@ contract Poll is IPoll {
     /**
      * @notice Create a new poll
      * @param _question The poll question
-     * @param _options Array of voting options
+     * @param pollOptions Array of voting options
      * @param _duration Poll duration in seconds
      * @param _voterMerkleRoot Merkle root of eligible voters
      * @param _zkVerifier Address of ZK proof verifier
@@ -82,13 +82,13 @@ contract Poll is IPoll {
      */
     constructor(
         string memory _question,
-        string[] memory _options,
+        string[] memory pollOptions,
         uint256 _duration,
         bytes32 _voterMerkleRoot,
         address _zkVerifier,
         address _oracle
     ) {
-        require(_options.length >= 2, "At least 2 options required");
+        require(pollOptions.length >= 2, "At least 2 options required");
         require(_duration > 0, "Duration must be positive");
         require(_voterMerkleRoot != bytes32(0), "Invalid Merkle root");
         require(_zkVerifier != address(0), "Invalid verifier");
@@ -96,7 +96,7 @@ contract Poll is IPoll {
 
         creator = msg.sender;
         question = _question;
-        options = _options;
+        _options = pollOptions;
         duration = _duration;
         voterMerkleRoot = _voterMerkleRoot;
         zkVerifier = IZKVerifier(_zkVerifier);
@@ -107,7 +107,7 @@ contract Poll is IPoll {
         state = PollState.Active;
 
         // Initialize results array
-        _results = new uint256[](_options.length);
+        _results = new uint256[](pollOptions.length);
 
         // Request oracle to close poll at end time
         oracle.requestPollClose(address(this), endTime);
@@ -119,11 +119,7 @@ contract Poll is IPoll {
      * @param zkProof ZK proof of voter eligibility and vote validity
      * @param merklePath Merkle proof of voter in eligible set
      */
-    function commitVote(
-        bytes32 commitment,
-        bytes calldata zkProof,
-        bytes32[] calldata merklePath
-    ) external override {
+    function commitVote(bytes32 commitment, bytes calldata zkProof, bytes32[] calldata merklePath) external override {
         if (state != PollState.Active) revert PollNotActive();
         if (commitments[msg.sender].commitment != bytes32(0)) revert AlreadyVoted();
 
@@ -141,11 +137,7 @@ contract Poll is IPoll {
         }
 
         // Store commitment
-        commitments[msg.sender] = VoteCommitment({
-            commitment: commitment,
-            timestamp: block.timestamp,
-            revealed: false
-        });
+        commitments[msg.sender] = VoteCommitment({commitment: commitment, timestamp: block.timestamp, revealed: false});
 
         totalCommitted++;
 
@@ -164,7 +156,7 @@ contract Poll is IPoll {
 
         if (commitment.commitment == bytes32(0)) revert NoCommitment();
         if (commitment.revealed) revert AlreadyRevealed();
-        if (choice >= options.length) revert InvalidChoice();
+        if (choice >= _options.length) revert InvalidChoice();
 
         // Verify reveal matches commitment
         bytes32 expectedCommitment = keccak256(abi.encodePacked(choice, salt, msg.sender));
@@ -220,6 +212,13 @@ contract Poll is IPoll {
     function getResults() external view override returns (uint256[] memory) {
         if (state != PollState.Tallied) revert PollNotTallied();
         return _results;
+    }
+
+    /**
+     * @notice Get poll options
+     */
+    function options() external view override returns (string[] memory) {
+        return _options;
     }
 
     /**

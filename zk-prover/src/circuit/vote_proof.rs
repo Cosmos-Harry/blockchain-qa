@@ -1,9 +1,9 @@
 use ark_bn254::Fr;
 use ark_ff::PrimeField;
-use ark_r1cs_std::prelude::*;
 use ark_r1cs_std::fields::fp::FpVar;
+use ark_r1cs_std::prelude::*;
 use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
-use sha2::{Sha256, Digest};
+use sha2::{Digest, Sha256};
 
 /// Vote proof circuit
 /// Proves that a vote is valid without revealing the choice
@@ -104,12 +104,8 @@ impl ConstraintSynthesizer<Fr> for VoteProofCircuit {
 
         // Simplified commitment check using field arithmetic
         // Real implementation would use Poseidon hash gadget
-        let computed_commitment = simulate_hash_constraint(
-            cs.clone(),
-            &choice_var,
-            &nonce_var,
-            &voter_var,
-        )?;
+        let computed_commitment =
+            simulate_hash_constraint(cs.clone(), &choice_var, &nonce_var, &voter_var)?;
 
         // Enforce computed_commitment == commitment_var
         computed_commitment.enforce_equal(&commitment_var)?;

@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
+	"time"
 
 	"github.com/Cosmos-Harry/blockchain-qa/indexer/internal/database"
 	"github.com/gofiber/fiber/v2"
@@ -42,8 +44,10 @@ func (h *PollHandler) GetPoll(c *fiber.Ctx) error {
 	if h.redis != nil {
 		cached, err := h.redis.Get(ctx, cacheKey).Result()
 		if err == nil && cached != "" {
-			// TODO: Unmarshal from JSON
-			_ = cached
+			var cachedPoll database.Poll
+			if json.Unmarshal([]byte(cached), &cachedPoll) == nil {
+				return c.JSON(&cachedPoll)
+			}
 		}
 	}
 
@@ -62,9 +66,11 @@ func (h *PollHandler) GetPoll(c *fiber.Ctx) error {
 		})
 	}
 
-	// Cache for 1 minute
+	// Cache the poll result for 1 minute
 	if h.redis != nil {
-		// TODO: Marshal to JSON and cache
+		if data, err := json.Marshal(poll); err == nil {
+			h.redis.Set(ctx, cacheKey, string(data), time.Minute)
+		}
 	}
 
 	return c.JSON(poll)

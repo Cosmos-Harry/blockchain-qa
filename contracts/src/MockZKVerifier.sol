@@ -12,8 +12,8 @@ import {IZKVerifier} from "./interfaces/IZKVerifier.sol";
 contract MockZKVerifier is IZKVerifier {
     /// @notice Mode for controlling verification behavior
     enum VerificationMode {
-        AlwaysPass,      // Always returns true
-        AlwaysFail,      // Always returns false
+        AlwaysPass, // Always returns true
+        AlwaysFail, // Always returns false
         CheckPublicInput // Validates public input format
     }
 
@@ -60,10 +60,7 @@ contract MockZKVerifier is IZKVerifier {
      * @param publicInputs The public inputs to verify
      * @return True if proof is valid according to current mode
      */
-    function verifyProof(
-        bytes calldata proof,
-        uint256[] calldata publicInputs
-    ) external override returns (bool) {
+    function verifyProof(bytes calldata proof, uint256[] calldata publicInputs) external override returns (bool) {
         verificationCount++;
 
         bool result;

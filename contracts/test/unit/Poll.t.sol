@@ -11,6 +11,8 @@ import "../../src/MockZKVerifier.sol";
  * @notice Unit tests for Poll contract
  */
 contract PollTest is Test {
+    event VoteCommitted(address indexed voter, bytes32 commitment, uint256 timestamp);
+    event VoteRevealed(address indexed voter, uint256 choice, uint256 timestamp);
     Poll public poll;
     MockOracle public oracle;
     MockZKVerifier public verifier;
@@ -39,39 +41,30 @@ contract PollTest is Test {
         verifier = new MockZKVerifier(MockZKVerifier.VerificationMode.AlwaysPass);
         oracle = new MockOracle(MockOracle.ResponseMode.OnTime, 0);
 
-        // Create simple Merkle tree for testing
-        // Tree: root
-        //       /    \
-        //    h1       h2
-        //   /  \     /
-        // v1   v2  v3
-
+        // Create simple Merkle tree for testing with sorted hashing
+        // The verifier sorts pairs: smaller hash on the left
         bytes32 leaf1 = keccak256(abi.encodePacked(voter1));
         bytes32 leaf2 = keccak256(abi.encodePacked(voter2));
         bytes32 leaf3 = keccak256(abi.encodePacked(address(5)));
 
-        bytes32 h1 = keccak256(abi.encodePacked(leaf1, leaf2));
-        bytes32 h2 = keccak256(abi.encodePacked(leaf3));
+        // Build internal nodes with sorted ordering (matching verifier logic)
+        bytes32 h1 =
+            leaf1 <= leaf2 ? keccak256(abi.encodePacked(leaf1, leaf2)) : keccak256(abi.encodePacked(leaf2, leaf1));
+        // leaf3 is paired with itself for a balanced tree
+        bytes32 h2 = keccak256(abi.encodePacked(leaf3, leaf3));
 
-        voterMerkleRoot = keccak256(abi.encodePacked(h1, h2));
+        voterMerkleRoot = h1 <= h2 ? keccak256(abi.encodePacked(h1, h2)) : keccak256(abi.encodePacked(h2, h1));
 
-        // Merkle proofs
-        merkleProof1.push(leaf2);
-        merkleProof1.push(h2);
+        // Merkle proofs (sibling at each level)
+        merkleProof1.push(leaf2); // sibling of leaf1
+        merkleProof1.push(h2); // sibling of h1
 
-        merkleProof2.push(leaf1);
-        merkleProof2.push(h2);
+        merkleProof2.push(leaf1); // sibling of leaf2
+        merkleProof2.push(h2); // sibling of h1
 
         // Deploy poll
         vm.prank(creator);
-        poll = new Poll(
-            question,
-            options,
-            duration,
-            voterMerkleRoot,
-            address(verifier),
-            address(oracle)
-        );
+        poll = new Poll(question, options, duration, voterMerkleRoot, address(verifier), address(oracle));
     }
 
     // ========== Constructor Tests ==========
@@ -91,14 +84,7 @@ contract PollTest is Test {
         badOptions[0] = "Only one";
 
         vm.expectRevert();
-        new Poll(
-            question,
-            badOptions,
-            duration,
-            voterMerkleRoot,
-            address(verifier),
-            address(oracle)
-        );
+        new Poll(question, badOptions, duration, voterMerkleRoot, address(verifier), address(oracle));
     }
 
     // ========== Vote Commitment Tests ==========
@@ -165,7 +151,7 @@ contract PollTest is Test {
         verifier.setMode(MockZKVerifier.VerificationMode.AlwaysFail);
 
         bytes32 commitment = keccak256(abi.encodePacked(uint256(0), bytes32(uint256(123)), voter1));
-        bytes memory proof = hex"bad";
+        bytes memory proof = hex"ba00";
 
         vm.expectRevert(Poll.InvalidProof.selector);
         vm.prank(voter1);
@@ -394,7 +380,7 @@ contract PollTest is Test {
         bytes memory proof = hex"dead";
 
         vm.expectEmit(true, false, false, true);
-        emit IPoll.VoteCommitted(voter1, commitment, block.timestamp);
+        emit VoteCommitted(voter1, commitment, block.timestamp);
 
         vm.prank(voter1);
         poll.commitVote(commitment, proof, merkleProof1);
@@ -414,7 +400,7 @@ contract PollTest is Test {
 
         // Expect reveal event
         vm.expectEmit(true, false, false, true);
-        emit IPoll.VoteRevealed(voter1, choice, block.timestamp);
+        emit VoteRevealed(voter1, choice, block.timestamp);
 
         vm.prank(voter1);
         poll.revealVote(choice, salt);

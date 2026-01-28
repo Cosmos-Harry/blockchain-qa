@@ -24,9 +24,14 @@ test.describe('Poll Lifecycle E2E', () => {
     blockchain = new BlockchainHelper(RPC_URL, TEST_KEYS);
     api = new APIHelper(API_URL);
 
-    // Verify services are running
-    const apiHealthy = await api.healthCheck();
-    expect(apiHealthy, 'API should be healthy').toBeTruthy();
+    // Wait for API to be ready (retry up to 30 seconds)
+    let apiHealthy = false;
+    for (let i = 0; i < 30; i++) {
+      apiHealthy = await api.healthCheck();
+      if (apiHealthy) break;
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    expect(apiHealthy, 'API should be healthy after waiting').toBeTruthy();
 
     const blockNumber = await blockchain.getBlockNumber();
     expect(blockNumber, 'Blockchain should be running').toBeGreaterThan(0);

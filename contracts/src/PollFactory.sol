@@ -27,11 +27,7 @@ contract PollFactory {
 
     /// @notice Emitted when a new poll is created
     event PollCreated(
-        uint256 indexed pollId,
-        address indexed pollAddress,
-        address indexed creator,
-        string question,
-        uint256 duration
+        uint256 indexed pollId, address indexed pollAddress, address indexed creator, string question, uint256 duration
     );
 
     /// @notice Custom errors
@@ -59,21 +55,12 @@ contract PollFactory {
      * @param voterMerkleRoot Merkle root of eligible voters
      * @return pollAddress Address of the newly created poll
      */
-    function createPoll(
-        string memory question,
-        string[] memory options,
-        uint256 duration,
-        bytes32 voterMerkleRoot
-    ) external returns (address pollAddress) {
+    function createPoll(string memory question, string[] memory options, uint256 duration, bytes32 voterMerkleRoot)
+        external
+        returns (address pollAddress)
+    {
         // Create new poll
-        Poll poll = new Poll(
-            question,
-            options,
-            duration,
-            voterMerkleRoot,
-            zkVerifier,
-            oracle
-        );
+        Poll poll = new Poll(question, options, duration, voterMerkleRoot, zkVerifier, oracle);
 
         pollAddress = address(poll);
         uint256 pollId = pollCount++;

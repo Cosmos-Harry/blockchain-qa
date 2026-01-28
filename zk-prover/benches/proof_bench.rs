@@ -20,9 +20,7 @@ fn bench_proof_verification(c: &mut Criterion) {
     let proof = prover.prove_vote(1, [42u8; 32], [1u8; 20], 3).unwrap();
 
     c.bench_function("vote proof verification", |b| {
-        b.iter(|| {
-            prover.verify_vote(black_box(&proof)).unwrap()
-        });
+        b.iter(|| prover.verify_vote(black_box(&proof)).unwrap());
     });
 }
 

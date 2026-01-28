@@ -14,7 +14,13 @@ test.describe('API Endpoints', () => {
   });
 
   test('health check endpoint', async () => {
-    const healthy = await api.healthCheck();
+    // Retry up to 30 seconds for API to be ready
+    let healthy = false;
+    for (let i = 0; i < 30; i++) {
+      healthy = await api.healthCheck();
+      if (healthy) break;
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
     expect(healthy).toBeTruthy();
     console.log('✓ API health check passed');
   });

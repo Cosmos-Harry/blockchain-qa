@@ -72,9 +72,8 @@ jobs:
 
       - name: Build Go services
         run: |
-          cd indexer && go build -o ../bin/indexer ./cmd/indexer
-          cd ../indexer && go build -o ../bin/api ./cmd/api
-          cd ../oracle && go build -o ../bin/oracle ./cmd/oracle
+          cd indexer && go mod download && go build -o ../bin/indexer ./cmd/indexer && go build -o ../bin/api ./cmd/api
+          cd ../oracle && go mod download && go build -o ../bin/oracle ./cmd/oracle
 
       - name: Start indexer
         env:
