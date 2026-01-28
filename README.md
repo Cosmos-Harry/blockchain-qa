@@ -144,8 +144,11 @@ cd /Users/harrycosmos/go/projects/blockchain-qa/contracts
 # Deploy everything at once
 ~/.foundry/bin/forge script script/Deploy.s.sol --rpc-url http://localhost:8545 --broadcast
 
-# SAVE THE POLLFACTORY ADDRESS from the output!
+# SAVE THE POLLFACTORY and ORACLE ADDRESSES from the output!
 # Example output: "PollFactory deployed to: 0xa513E6E4b8f2a923D98304ec87F64353C4D5C853"
+#
+# If addresses aren't printed, check the broadcast logs:
+# grep -A1 "PollFactory\|MockOracle" contracts/broadcast/Deploy.s.sol/31337/run-latest.json
 ```
 
 **Step 3: Configure and Build CLI (Terminal 2)**
