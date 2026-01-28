@@ -73,11 +73,12 @@ func runCreatePoll(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// If no voter merkle root specified, use a test root
-	// NOTE: The contract requires a non-zero merkle root. For testing, we use keccak256("test-voters")
+	// If no voter merkle root specified, default to single-voter root for Anvil account 0.
+	// This is keccak256(abi.encodePacked(0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266)), allowing
+	// that account to vote with an empty Merkle proof.
 	if voterMerkleRoot == "" {
-		voterMerkleRoot = "0x9c22ff5f21f0b81b113e63f7db6da94fedef11b2119b4088b89664fb9a3cb658" // keccak256("test")
-		log.Println("No voter merkle root specified, using test root (for development only)")
+		voterMerkleRoot = "0xe9707d0e6171f728f7473c24cc0432a9b07eaaf1efed6a137a4a8c12c79552d9"
+		log.Println("No voter merkle root specified, defaulting to Anvil account 0 single-voter root")
 	}
 
 	log.Printf("  Question: %s\n", question)

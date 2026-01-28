@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"math/big"
+	"strings"
 
 	"github.com/Cosmos-Harry/blockchain-qa/cli/internal/bindings"
 	"github.com/Cosmos-Harry/blockchain-qa/cli/internal/wallet"
@@ -51,8 +52,9 @@ func runReveal(cmd *cobra.Command, args []string) error {
 	log.Printf("Poll: %s\n", pollAddress)
 	log.Printf("Choice: %d\n", revealChoice)
 
-	// Parse nonce
-	nonceBytes, err := hex.DecodeString(revealNonce)
+	// Parse nonce (strip 0x prefix if present)
+	nonceHex := strings.TrimPrefix(revealNonce, "0x")
+	nonceBytes, err := hex.DecodeString(nonceHex)
 	if err != nil {
 		return fmt.Errorf("failed to decode nonce: %w", err)
 	}

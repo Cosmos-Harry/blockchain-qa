@@ -130,6 +130,30 @@ func (w *Wallet) GetBalance(ctx context.Context) (*big.Int, error) {
 	return w.client.BalanceAt(ctx, w.address, nil)
 }
 
+// SendRawTx signs and sends a raw transaction with the given data
+func (w *Wallet) SendRawTx(ctx context.Context, auth *bind.TransactOpts, to common.Address, data []byte) (common.Hash, error) {
+	tx := types.NewTransaction(
+		auth.Nonce.Uint64(),
+		to,
+		big.NewInt(0),
+		auth.GasLimit,
+		auth.GasPrice,
+		data,
+	)
+
+	signer := types.NewEIP155Signer(w.chainID)
+	signedTx, err := types.SignTx(tx, signer, w.privateKey)
+	if err != nil {
+		return common.Hash{}, fmt.Errorf("failed to sign transaction: %w", err)
+	}
+
+	if err := w.client.SendTransaction(ctx, signedTx); err != nil {
+		return common.Hash{}, fmt.Errorf("failed to send transaction: %w", err)
+	}
+
+	return signedTx.Hash(), nil
+}
+
 // WaitForReceipt waits for a transaction receipt
 func (w *Wallet) WaitForReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error) {
 	// Wait for transaction to be mined

@@ -6,10 +6,14 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
+	"math/big"
 	"strings"
 
 	"github.com/Cosmos-Harry/blockchain-qa/cli/internal/bindings"
 	"github.com/Cosmos-Harry/blockchain-qa/cli/internal/wallet"
+	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/spf13/cobra"
@@ -121,7 +125,9 @@ func runVote(cmd *cobra.Command, args []string) error {
 	}
 
 	if receipt.Status == 0 {
-		return fmt.Errorf("transaction failed")
+		// Decode revert reason from receipt logs or re-call to get error
+		revertReason := decodeRevertReason(ctx, w, pollAddr, auth, commitment, zkProof, proofHashes)
+		return fmt.Errorf("transaction reverted: %s", revertReason)
 	}
 
 	log.Printf("\nVote committed successfully!\n")
@@ -134,11 +140,18 @@ func runVote(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// computeCommitment computes the vote commitment hash
+// computeCommitment computes the vote commitment hash matching the contract's
+// keccak256(abi.encodePacked(uint256 choice, bytes32 salt, address voter))
 func computeCommitment(choice uint64, nonce []byte, voter common.Address) common.Hash {
-	// Simplified commitment (should match circuit implementation)
-	// In production, this would use Poseidon hash to match the circuit
-	data := append([]byte(fmt.Sprintf("%d", choice)), nonce...)
+	// uint256: left-pad choice to 32 bytes (big-endian)
+	choiceBig := new(big.Int).SetUint64(choice)
+	choiceBytes := common.LeftPadBytes(choiceBig.Bytes(), 32)
+
+	// bytes32: nonce is already 32 bytes
+	// address: 20 bytes, no padding in encodePacked
+	var data []byte
+	data = append(data, choiceBytes...)
+	data = append(data, nonce...)
 	data = append(data, voter.Bytes()...)
 	return crypto.Keccak256Hash(data)
 }
@@ -152,4 +165,39 @@ func generateDummyZKProof() []byte {
 		log.Fatalf("Failed to generate random proof: %v", err)
 	}
 	return proof
+}
+
+// decodeRevertReason re-calls the contract via eth_call to extract the revert reason
+func decodeRevertReason(ctx context.Context, w *wallet.Wallet, pollAddr common.Address, auth *bind.TransactOpts, commitment common.Hash, zkProof []byte, proofHashes [][32]byte) string {
+	// Parse the Poll ABI
+	pollABI, err := abi.JSON(strings.NewReader(bindings.PollABI))
+	if err != nil {
+		return "unknown (failed to parse ABI)"
+	}
+
+	// Pack the commitVote call data
+	data, err := pollABI.Pack("commitVote", commitment, zkProof, proofHashes)
+	if err != nil {
+		return "unknown (failed to pack call data)"
+	}
+
+	// Execute as eth_call to get revert reason
+	msg := ethereum.CallMsg{
+		From: auth.From,
+		To:   &pollAddr,
+		Data: data,
+	}
+
+	_, err = w.GetClient().CallContract(ctx, msg, nil)
+	if err != nil {
+		// Try to decode custom error selector into error name
+		errStr := err.Error()
+		for _, e := range pollABI.Errors {
+			if strings.Contains(errStr, fmt.Sprintf("0x%x", e.ID[:4])) {
+				return e.Name
+			}
+		}
+		return errStr
+	}
+	return "unknown"
 }

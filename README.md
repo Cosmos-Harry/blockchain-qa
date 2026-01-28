@@ -164,14 +164,18 @@ export POLL_FACTORY_ADDRESS=<FACTORY_ADDRESS>
 
 **Step 4: Create Your First Poll**
 ```bash
-# Make sure you're in the cli directory and POLL_FACTORY_ADDRESS is set!
+# The --voter-root is required for the Merkle proof check.
+# For a single voter (account 0), the root is keccak256(voter_address):
+#   0xe9707d0e6171f728f7473c24cc0432a9b07eaaf1efed6a137a4a8c12c79552d9
+
 ./poll-cli create-poll \
   --private-key ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
   --question "What's your favorite color?" \
   --options "Red,Blue,Green" \
-  --duration 3600
+  --duration 3600 \
+  --voter-root 0xe9707d0e6171f728f7473c24cc0432a9b07eaaf1efed6a137a4a8c12c79552d9
 
-# Output: Poll address: 0x... (save this!)
+# Output includes: Poll Address: 0x... (save this!)
 ```
 
 **Step 5: Vote on the Poll**
@@ -181,28 +185,39 @@ export POLL_FACTORY_ADDRESS=<FACTORY_ADDRESS>
   --poll 0xYOUR_POLL_ADDRESS \
   --choice 0
 
-# Output: Vote committed! Transaction: 0x...
-# IMPORTANT: Save the nonce shown - you'll need it to reveal!
+# Output includes: Vote committed successfully!
+# IMPORTANT: Save the Nonce shown - you'll need it to reveal!
+# Example: Nonce: a1b2c3d4e5f6... (hex string, no 0x prefix)
 ```
 
-**Note**: For testing, polls must use a merkle root that matches the voter. For a single voter:
-```bash
-# Calculate correct merkle root for voter 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266:
-~/.foundry/bin/cast keccak 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
-# Returns: 0xe9707d0e6171f728f7473c24cc0432a9b07eaaf1efed6a137a4a8c12c79552d9
+**Step 6: Close the Poll (fast-forward time, then trigger oracle)**
 
-# Use this as --voter-root when creating the poll
-```
+The poll doesn't auto-close when time passes — the MockOracle must call `closePoll()`. Two steps:
 
-**Step 6: Close the Poll (fast-forward time for testing)**
 ```bash
-cast rpc evm_increaseTime 3600 --rpc-url http://localhost:8545
-cast rpc evm_mine --rpc-url http://localhost:8545
+# 1. Fast-forward time past the poll duration:
+curl -s -X POST -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","method":"evm_increaseTime","params":[3600],"id":1}' \
+  http://localhost:8545
+
+curl -s -X POST -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","method":"evm_mine","params":[],"id":2}' \
+  http://localhost:8545
+
+# 2. Trigger the oracle to close the poll:
+#    ORACLE_ADDRESS is from the deploy output (grep broadcast logs for "MockOracle")
+./poll-cli close-poll \
+  --private-key ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
+  --poll 0xYOUR_POLL_ADDRESS \
+  --oracle 0xYOUR_ORACLE_ADDRESS
 ```
 
 **Step 7: Reveal Your Vote**
 ```bash
-./poll-cli reveal --poll 0xYOUR_POLL_ADDRESS --choice 0 --nonce 0xYOUR_SAVED_NONCE
+./poll-cli reveal \
+  --poll 0xYOUR_POLL_ADDRESS \
+  --choice 0 \
+  --nonce 0xYOUR_SAVED_NONCE
 ```
 
 **Step 8: View Poll Status and Results**
